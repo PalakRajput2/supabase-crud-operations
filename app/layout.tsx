@@ -6,7 +6,7 @@ import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
 import { Toaster } from "react-hot-toast";
 export const metadata: Metadata = {
-  title: "Next js application with Supabase",
+  title: "CRUD application with Supabase",
 };
 
 export default function RootLayout({

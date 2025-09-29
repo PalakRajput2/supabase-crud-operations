@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-unused-expressions */
 /* eslint-disable @typescript-eslint/no-explicit-any */
 "use client";
 import { supabase } from "@/lib/supabaseClient";
@@ -10,6 +11,7 @@ import { useForm } from "react-hook-form";
 
 import * as yup from "yup";
 import { yupResolver } from "@hookform/resolvers/yup";
+import Swal from "sweetalert2";
 
 interface ProductType {
   id?: number;
@@ -27,10 +29,11 @@ const formSchema = yup.object().shape({
 
 export default function Dashboard() {
   const [preview, setPreview] = useState<string | null>(null);
-  const [products, setProducts] = useState<ProductType | null>(null);
+  const [products, setProducts] = useState<ProductType[]>([]);
   const [userId, setUserId] = useState<string | null>(null);
+  const [editId, setEditId] = useState(null);
 
-  const { setAuthToken, setIsLoggedIn, isLoggedIn, setUserProfile } =
+  const { setAuthToken, setIsLoggedIn, isLoggedIn, setUserProfile , setIsLoading } =
     useMyAppHook();
   const router = useRouter();
 
@@ -53,27 +56,26 @@ export default function Dashboard() {
         router.push("/auth/login");
         return;
       }
+setIsLoading(true)
       if (data.session?.access_token) {
         setAuthToken(data.session?.access_token);
         setUserId(data.session?.user.id ?? null);
         localStorage.setItem("access_token", data.session?.access_token);
         setIsLoggedIn(true);
-        setUserProfile({
+
+        const profile = {
           name: data.session.user?.user_metadata.fullname,
           email: data.session.user?.user_metadata.email,
           gender: data.session.user?.user_metadata.gender,
           phone: data.session.user?.user_metadata.phone,
-        });
-        localStorage.setItem(
-          "user_profile",
-          JSON.stringify({
-            name: data.session.user?.user_metadata.fullName,
-            email: data.session.user?.user_metadata.email,
-            gender: data.session.user?.user_metadata.gender,
-            phone: data.session.user?.user_metadata.phone,
-          })
-        );
+        };
+
+        setUserProfile(profile);
+        localStorage.setItem("user_profile", JSON.stringify(profile));
+
+        fetchProductsFromTable(data.session.user.id);
       }
+         setIsLoading(false)
     };
 
     handleLoginSession();
@@ -88,165 +90,242 @@ export default function Dashboard() {
   const uploadImageFile = async (file: File) => {
     const fileExtension = file.name.split(".").pop();
     const fileName = `${Date.now()}.${fileExtension}`;
+
     const { data, error } = await supabase.storage
-      .from("products-images")
+      .from("products-images") // make sure your bucket name is exactly this
       .upload(fileName, file);
 
     if (error) {
-      toast.error("Error while uploading the image");
+      toast.error("Failed to upload banner image");
       return null;
     }
 
-    return supabase.storage
+    const { data: publicUrlData } = supabase.storage
       .from("products-images")
-      .getPublicUrl(fileName).data.publicUrl;
+      .getPublicUrl(fileName);
+
+    return publicUrlData.publicUrl;
   };
 
   // Form submit
   const onFormSubmit = async (formData: any) => {
-    let imagePath = null;
+     setIsLoading(true)
+    let imagePath = formData.banner_image;
     if (formData.banner_image instanceof File) {
       imagePath = await uploadImageFile(formData.banner_image);
       if (!imagePath) return;
     }
 
-    const { data, error } = await supabase.from("products").insert({
-      ...formData,
-      user_id: userId,
-      banner_image: imagePath,
-    });
-    if (error) {
-      toast.error("Failed to Add Product");
+    if (editId) {
+      // Edit Operation
+      const { data, error } = await supabase
+        .from("products")
+        .update({
+          ...formData,
+          banner_image: imagePath,
+        })
+        .match({
+          id: editId,
+          user_id: userId,
+        });
+
+      if (error) {
+        toast.error("Failed to update product data");
+      } else {
+        toast.success("Product has been updated successfully");
+      }
     } else {
-      toast.success("Successfully Product has been created!");
+      const { data, error } = await supabase.from("products").insert({
+        ...formData,
+        user_id: userId,
+        banner_image: imagePath,
+      });
+
+      if (error) {
+        toast.error("Failed to Add Product");
+      } else {
+        toast.success("Successfully Product has been created!");
+        if (userId) fetchProductsFromTable(userId);
+      }
+      reset();
     }
-    reset();
-  }; 
+
+    setPreview(null);
+    fetchProductsFromTable(userId!);
+     setIsLoading(false)
+  };
+
+  const fetchProductsFromTable = async (userId: string) => {
+          setIsLoading(true)
+
+    const { data, error } = await supabase
+      .from("products")
+      .select("*")
+      .eq("user_id", userId);
+
+    if (data) {
+      setProducts(data as ProductType[]);
+    }
+          setIsLoading(false)
+
+  };
+
+  const handleEditData = (product: ProductType) => {
+    setValue("title", product.title);
+    setValue("content", product.content);
+    setValue("cost", product.cost),
+      setValue("banner_image", product.banner_image);
+    setPreview(product.banner_image);
+    setEditId(product.id!);
+  };
+
+  const handleDeleteProduct = (id: number) => {
+    Swal.fire({
+      title: "Are you sure?",
+      text: "You won't be able to revert this!",
+      icon: "warning",
+      showCancelButton: true,
+      confirmButtonColor: "#3085d6",
+      cancelButtonColor: "#d33",
+      confirmButtonText: "Yes, delete it!",
+    }).then(async (result) => {
+      if (result.isConfirmed) {
+        const { data, error } = await supabase.from("products").delete().match({
+          id: id,
+          user_id: userId,
+        });
+
+        if (error) {
+          toast.error("Failed to delete product");
+        } else {
+          Swal.fire({
+            title : "Deleted!",
+            text:"The product has been deleted",
+            icon: "success"
+          });
+          fetchProductsFromTable(userId!)
+        }
+      }
+    });
+  };
 
   return (
-    <>
-      <div className="container mt-5">
-        <div className="row">
-          <div className="col-md-5">
-            <h3>Add Product</h3>
-            <form onSubmit={handleSubmit(onFormSubmit)}>
-              <div className="mb-3">
-                <label className="form-label">Title</label>
-                <input
-                  type="text"
-                  className="form-control"
-                  {...register("title")}
-                />
-                <small className="text-danger">
-                  {errors.title?.message}
-                </small>
+    <div className="container mt-5 ">
+      <div className="row">
+        {/* Add Product Form */}
+        <div className="col-md-4 ">
+          <h3 className="mb-4">{editId ? "Edit Product" : "Add Product"}</h3>
+          <form onSubmit={handleSubmit(onFormSubmit)}>
+            <div className="mb-3">
+              <label className="form-label"> <b>Title</b></label>
+              <input
+                type="text"
+                className="form-control"
+                {...register("title")}
+              />
+              <small className="text-danger">{errors.title?.message}</small>
+            </div>
+            <div className="mb-3">
+              <label className="form-label"><b>Content</b></label>
+              <textarea
+                className="form-control"
+                {...register("content")}
+              ></textarea>
+              <small className="text-danger">{errors.content?.message}</small>
+            </div>
+            <div className="mb-3">
+              <label className="form-label"><b>Cost</b></label>
+              <input
+                type="number"
+                className="form-control"
+                {...register("cost")}
+              />
+              <small className="text-danger">{errors.cost?.message}</small>
+            </div>
+            <div className="mb-3">
+              <label className="form-label"><b>Banner Image</b></label>
+              <div className="mb-2">
+                {preview && (
+                  <Image src={preview} alt="Preview" width={100} height={100} />
+                )}
               </div>
-              <div className="mb-3">
-                <label className="form-label">Content</label>
-                <textarea
-                  className="form-control"
-                  {...register("content")}
-                ></textarea>
-                <small className="text-danger">
-                  {errors.content?.message}
-                </small>
-              </div>
-              <div className="mb-3">
-                <label className="form-label">Cost</label>
-                <input
-                  type="number"
-                  className="form-control"
-                  {...register("cost")}
-                />
-                <small className="text-danger">
-                  {errors.cost?.message}
-                </small>
-              </div>
-              <div className="mb-3">
-                <label className="form-label">Banner Image</label>
-                <div className="mb-2">
-                  {preview ? (
-                    <Image
-                      src={preview}
-                      alt="Preview"
-                      id="bannerPreview"
-                      width={100}
-                      height={100}
-                    />
-                  ) : (
-                    ""
-                  )}
-                </div>
-                <input
-                  type="file"
-                  className="form-control"
-                  onChange={(event) => {
-                    if (event.target.files?.[0]) {
-                      setValue("banner_image", event.target.files[0]);
-                      setPreview(URL.createObjectURL(event.target.files[0]));
-                    }
-                  }}
-                />
-              </div>
-              <button type="submit" className="btn btn-success w-100">
-                Add Product
-              </button>
-            </form>
-          </div>
+              <input
+                type="file"
+                className="form-control"
+                onChange={(event) => {
+                  const file = event.target.files?.[0];
+                  if (!file) return;
+                  setValue("banner_image", file);
+                  setPreview(URL.createObjectURL(file));
+                }}
+              />
+            </div>
+            <button type="submit" className="btn btn-success w-100">
+              {editId ? "Update Product" : "Add Product"}
+            </button>
+          </form>
+        </div>
 
-          <div className="col-md-7">
-            <h3>Product List</h3>
-            <table className="table table-bordered">
-              <thead>
-                <tr>
-                  <th>Title</th>
-                  <th>Content</th>
-                  <th>Cost</th>
-                  <th>Banner Image</th>
-                  <th>Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                {products ? (
-                  <tr>
-                    <td>Sample Product</td>
-                    <td>Sample Content</td>
-                    <td>$100</td>
+        {/* Product List */}
+        <div className="col-md-7">
+          <h3>Product List</h3>
+          <table className="table table-bordered">
+            <thead>
+              <tr>
+                <th>Title</th>
+                <th>Content</th>
+                <th>Cost</th>
+                <th>Banner Image</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              {products.length > 0 ? (
+                products.map((singleProduct) => (
+                  <tr key={singleProduct.id}>
+                    <td>{singleProduct.title}</td>
+                    <td>{singleProduct.content}</td>
+                    <td>${singleProduct.cost}</td>
                     <td>
-                      {preview ? (
+                      {singleProduct.banner_image ? (
                         <Image
-                          src=""
-                          alt="Sample Product"
-                          id="bannerPreview"
-                          width={50}
+                          src={singleProduct.banner_image}
+                          alt={singleProduct.title}
+                          width={100}
                           height={50}
                         />
                       ) : (
-                        ""
+                        "-"
                       )}
                     </td>
                     <td>
-                      <button className="btn btn-primary btn-sm">Edit</button>
+                      <button
+                        className="btn btn-primary btn-sm"
+                        onClick={() => handleEditData(singleProduct)}
+                      >
+                        Edit
+                      </button>
                       <button
                         className="btn btn-danger btn-sm"
                         style={{ marginLeft: "10px" }}
+                        onClick={() => handleDeleteProduct(singleProduct.id!)}
                       >
                         Delete
                       </button>
                     </td>
                   </tr>
-                ) : (
-                  <tr>
-                    <td colSpan={5} className="text-center">
-                      No products found.
-                    </td>
-                  </tr>
-                )}
-              </tbody>
-            </table>
-          </div>
+                ))
+              ) : (
+                <tr>
+                  <td colSpan={5} className="text-center">
+                    No products found.
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
         </div>
       </div>
-    </>
+    </div>
   );
-} 
+}

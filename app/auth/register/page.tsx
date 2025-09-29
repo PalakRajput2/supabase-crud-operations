@@ -7,7 +7,7 @@ import { registerSchema } from "@/validations/authValidations";
 import { supabase } from "@/lib/supabaseClient";
 import toast from "react-hot-toast";
 import { useRouter } from "next/navigation";
-
+import { useMyAppHook } from "@/context/AppUtils";
 
 type RegisterFormData = {
   fullName: string;
@@ -21,6 +21,8 @@ type RegisterFormData = {
 export default function Register() {
 
   const router = useRouter();
+
+  const {setIsLoading} = useMyAppHook();
   const {
     register,
     handleSubmit,
@@ -30,6 +32,7 @@ export default function Register() {
   });
 
   const onSubmit = async (formdata: RegisterFormData) => {
+    setIsLoading(true);
     const {fullName , email, password, gender, phone} = formdata;
     const {data , error } = await supabase.auth.signUp({
       email , password , 
@@ -43,8 +46,10 @@ export default function Register() {
       toast.error("Not registered successfully");
     }else{
       toast.success("User registered successfully")
+      setIsLoading(false)
       router.push("/auth/login")
     }
+  
   };
 
   return (

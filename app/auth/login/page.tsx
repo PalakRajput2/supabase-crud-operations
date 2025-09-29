@@ -18,41 +18,39 @@ type LoginFormData = {
 
 export default function Login() {
   const router = useRouter();
-  const { isLoggedIn , setIsLoggedIn, setAuthToken } = useMyAppHook();
+  const { isLoggedIn, setIsLoggedIn, setAuthToken ,  setIsLoading  } = useMyAppHook();
 
   useEffect(() => {
     if (isLoggedIn) {
       router.push("/auth/dashboard");
       return;
     }
-  }, [isLoggedIn]);
+  }, [isLoggedIn, router]);
 
- 
   const {
-    register,
-    handleSubmit,
-    formState: { errors },
+    register,handleSubmit,formState: { errors },
   } = useForm<LoginFormData>({
     resolver: yupResolver(loginSchema),
   });
 
   const onSubmit = async (data: LoginFormData) => {
+     setIsLoading(true)
     const { email, password } = data;
 
-    const { error } = await supabase.auth.signInWithPassword({
+    const { data: loginData, error } = await supabase.auth.signInWithPassword({
       email,
       password,
     });
 
     if (error) {
       toast.error(error.message || "Failed to login");
-    } else {
-       if (data.session?.access_token) {
-        setAuthToken(data.session?.access_token);
-        localStorage.setItem("access_token", data.session?.access_token);
-        setIsLoggedIn(true);
-        toast.success("User logged in successfully");
-      }
+    } else if (loginData.session?.access_token) {
+      setAuthToken(loginData.session.access_token);
+      localStorage.setItem("access_token", loginData.session.access_token);
+      setIsLoggedIn(true);
+       setIsLoading(false)
+      toast.success("User logged in successfully");
+      router.push("/auth/dashboard");
     }
   };
 
@@ -75,7 +73,6 @@ export default function Login() {
           <div className="card shadow-sm p-4">
             <h2 className="text-center mb-4">Login</h2>
 
-         
             <form onSubmit={handleSubmit(onSubmit)}>
               {/* Email */}
               <div className="mb-3">
