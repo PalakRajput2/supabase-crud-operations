@@ -32,3 +32,9 @@ export const loginSchema = yup.object().shape({
     .required("Password is required")
     .min(6, "Password must be at least 6 characters"),
 });
+
+export const productSchema = yup.object().shape({
+  title: yup.string().required("Title is required"),
+  content: yup.string().required("Content is required"),
+  cost: yup.number().required("Cost is required").positive("Cost must be positive"),
+});
