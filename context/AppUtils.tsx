@@ -64,7 +64,15 @@ export const AppUtilsProvider = ({ children }: { children: React.ReactNode }) =>
         setIsLoading,
       }}
     >
-      {isLoading ? <Loader /> : children}
+      {children}
+      {isLoading && (
+        <div
+          className="position-fixed top-0 start-0 w-100 h-100 d-flex justify-content-center align-items-center bg-white bg-opacity-85"
+          style={{ zIndex: 9999 }}
+        >
+          <Loader />
+        </div>
+      )}
     </AppUtilsContext.Provider>
   );
 };
