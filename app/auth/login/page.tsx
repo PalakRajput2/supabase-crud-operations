@@ -18,7 +18,7 @@ type LoginFormData = {
 
 export default function Login() {
   const router = useRouter();
-  const { isLoggedIn, setIsLoggedIn, setAuthToken ,  setIsLoading  } = useMyAppHook();
+  const { isLoggedIn, setIsLoggedIn, setAuthToken, setIsLoading } = useMyAppHook();
 
   useEffect(() => {
     if (isLoggedIn) {
@@ -28,41 +28,56 @@ export default function Login() {
   }, [isLoggedIn, router]);
 
   const {
-    register,handleSubmit,formState: { errors },
+    register,
+    handleSubmit,
+    formState: { errors },
   } = useForm<LoginFormData>({
     resolver: yupResolver(loginSchema),
   });
 
   const onSubmit = async (data: LoginFormData) => {
-     setIsLoading(true)
-    const { email, password } = data;
+    setIsLoading(true);
+    try {
+      const { email, password } = data;
 
-    const { data: loginData, error } = await supabase.auth.signInWithPassword({
-      email,
-      password,
-    });
+      const { data: loginData, error } = await supabase.auth.signInWithPassword({
+        email,
+        password,
+      });
 
-    if (error) {
-      toast.error(error.message || "Failed to login");
-    } else if (loginData.session?.access_token) {
-      setAuthToken(loginData.session.access_token);
-      localStorage.setItem("access_token", loginData.session.access_token);
-      setIsLoggedIn(true);
-       setIsLoading(false)
-      toast.success("User logged in successfully");
-      router.push("/auth/dashboard");
+      if (error) {
+        toast.error(error.message || "Failed to login");
+      } else if (loginData.session?.access_token) {
+        setAuthToken(loginData.session.access_token);
+        localStorage.setItem("access_token", loginData.session.access_token);
+        setIsLoggedIn(true);
+
+        toast.success("User logged in successfully");
+        router.push("/auth/dashboard");
+      }
+    } catch (err) {
+      toast.error("Something went wrong. Please try again.");
+    } finally {
+      setIsLoading(false);
     }
   };
 
   const handleSocialOauth = async (provider: "google" | "github") => {
-    const { error } = await supabase.auth.signInWithOAuth({
-      provider,
-      options: {
-        redirectTo: `${window.location.origin}/auth/dashboard`,
-      },
-    });
-    if (error) {
-      toast.error("Failed to login via Social Oauth");
+    setIsLoading(true);
+    try {
+      const { error } = await supabase.auth.signInWithOAuth({
+        provider,
+        options: {
+          redirectTo: `${window.location.origin}/auth/dashboard`,
+        },
+      });
+      if (error) {
+        toast.error("Failed to login via Social Oauth");
+      }
+    } catch (err) {
+      toast.error("Something went wrong with OAuth");
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -81,9 +96,7 @@ export default function Login() {
                 </label>
                 <input
                   type="email"
-                  className={`form-control ${
-                    errors.email ? "is-invalid" : ""
-                  }`}
+                  className={`form-control ${errors.email ? "is-invalid" : ""}`}
                   placeholder="Enter your email"
                   {...register("email")}
                 />
@@ -97,9 +110,7 @@ export default function Login() {
                 </label>
                 <input
                   type="password"
-                  className={`form-control ${
-                    errors.password ? "is-invalid" : ""
-                  }`}
+                  className={`form-control ${errors.password ? "is-invalid" : ""}`}
                   placeholder="Enter your password"
                   {...register("password")}
                 />
@@ -107,10 +118,7 @@ export default function Login() {
               </div>
 
               {/* Submit */}
-              <button
-                type="submit"
-                className="btn btn-primary w-100 py-2 mb-3"
-              >
+              <button type="submit" className="btn btn-primary w-100 py-2 mb-3">
                 Login
               </button>
             </form>

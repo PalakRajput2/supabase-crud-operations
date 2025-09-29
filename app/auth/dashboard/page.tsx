@@ -16,24 +16,25 @@ import Swal from "sweetalert2";
 interface ProductType {
   id?: number;
   title: string;
-  content?: string;
-  cost?: string;
-  banner_image?: string | File | null;
+  content: string;
+  cost: string;
+  banner_image: string | null;
 }
 
 const formSchema = yup.object().shape({
   title: yup.string().required("Product title is required"),
   content: yup.string().required("Description is required"),
   cost: yup.string().required("Product cost is required"),
+ banner_image: yup.mixed<File>().nullable(), // allow File | null
 });
 
 export default function Dashboard() {
   const [preview, setPreview] = useState<string | null>(null);
   const [products, setProducts] = useState<ProductType[]>([]);
   const [userId, setUserId] = useState<string | null>(null);
-  const [editId, setEditId] = useState(null);
+  const [editId, setEditId] = useState<number | null>(null);
 
-  const { setAuthToken, setIsLoggedIn, isLoggedIn, setUserProfile , setIsLoading } =
+  const { setAuthToken, setIsLoggedIn, isLoggedIn, setUserProfile, setIsLoading } =
     useMyAppHook();
   const router = useRouter();
 
@@ -56,7 +57,7 @@ export default function Dashboard() {
         router.push("/auth/login");
         return;
       }
-setIsLoading(true)
+      setIsLoading(true);
       if (data.session?.access_token) {
         setAuthToken(data.session?.access_token);
         setUserId(data.session?.user.id ?? null);
@@ -75,7 +76,7 @@ setIsLoading(true)
 
         fetchProductsFromTable(data.session.user.id);
       }
-         setIsLoading(false)
+      setIsLoading(false);
     };
 
     handleLoginSession();
@@ -91,8 +92,8 @@ setIsLoading(true)
     const fileExtension = file.name.split(".").pop();
     const fileName = `${Date.now()}.${fileExtension}`;
 
-    const { data, error } = await supabase.storage
-      .from("products-images") // make sure your bucket name is exactly this
+    const { error } = await supabase.storage
+      .from("products-images") // bucket name
       .upload(fileName, file);
 
     if (error) {
@@ -109,19 +110,31 @@ setIsLoading(true)
 
   // Form submit
   const onFormSubmit = async (formData: any) => {
-     setIsLoading(true)
-    let imagePath = formData.banner_image;
-    if (formData.banner_image instanceof File) {
-      imagePath = await uploadImageFile(formData.banner_image);
-      if (!imagePath) return;
+    setIsLoading(true);
+
+    let imagePath: string | null = null;
+    const fileInput = formData.banner_image as FileList;
+
+    if (fileInput && fileInput.length > 0) {
+      const uploadedUrl = await uploadImageFile(fileInput[0]);
+      if (!uploadedUrl) {
+        setIsLoading(false);
+        return;
+      }
+      imagePath = uploadedUrl;
+    } else if (preview) {
+      // keep existing preview if editing
+      imagePath = preview;
     }
 
     if (editId) {
       // Edit Operation
-      const { data, error } = await supabase
+      const { error } = await supabase
         .from("products")
         .update({
-          ...formData,
+          title: formData.title,
+          content: formData.content,
+          cost: formData.cost,
           banner_image: imagePath,
         })
         .match({
@@ -135,8 +148,10 @@ setIsLoading(true)
         toast.success("Product has been updated successfully");
       }
     } else {
-      const { data, error } = await supabase.from("products").insert({
-        ...formData,
+      const { error } = await supabase.from("products").insert({
+        title: formData.title,
+        content: formData.content,
+        cost: formData.cost,
         user_id: userId,
         banner_image: imagePath,
       });
@@ -151,14 +166,14 @@ setIsLoading(true)
     }
 
     setPreview(null);
-    fetchProductsFromTable(userId!);
-     setIsLoading(false)
+    if (userId) fetchProductsFromTable(userId);
+    setIsLoading(false);
   };
 
   const fetchProductsFromTable = async (userId: string) => {
-          setIsLoading(true)
+    setIsLoading(true);
 
-    const { data, error } = await supabase
+    const { data } = await supabase
       .from("products")
       .select("*")
       .eq("user_id", userId);
@@ -166,16 +181,14 @@ setIsLoading(true)
     if (data) {
       setProducts(data as ProductType[]);
     }
-          setIsLoading(false)
-
+    setIsLoading(false);
   };
 
   const handleEditData = (product: ProductType) => {
     setValue("title", product.title);
     setValue("content", product.content);
-    setValue("cost", product.cost),
-      setValue("banner_image", product.banner_image);
-    setPreview(product.banner_image);
+    setValue("cost", product.cost);
+    setPreview(product.banner_image); // always string | null now
     setEditId(product.id!);
   };
 
@@ -190,7 +203,7 @@ setIsLoading(true)
       confirmButtonText: "Yes, delete it!",
     }).then(async (result) => {
       if (result.isConfirmed) {
-        const { data, error } = await supabase.from("products").delete().match({
+        const { error } = await supabase.from("products").delete().match({
           id: id,
           user_id: userId,
         });
@@ -199,11 +212,11 @@ setIsLoading(true)
           toast.error("Failed to delete product");
         } else {
           Swal.fire({
-            title : "Deleted!",
-            text:"The product has been deleted",
-            icon: "success"
+            title: "Deleted!",
+            text: "The product has been deleted",
+            icon: "success",
           });
-          fetchProductsFromTable(userId!)
+          if (userId) fetchProductsFromTable(userId);
         }
       }
     });
@@ -217,7 +230,10 @@ setIsLoading(true)
           <h3 className="mb-4">{editId ? "Edit Product" : "Add Product"}</h3>
           <form onSubmit={handleSubmit(onFormSubmit)}>
             <div className="mb-3">
-              <label className="form-label"> <b>Title</b></label>
+              <label className="form-label">
+                {" "}
+                <b>Title</b>
+              </label>
               <input
                 type="text"
                 className="form-control"
@@ -226,15 +242,16 @@ setIsLoading(true)
               <small className="text-danger">{errors.title?.message}</small>
             </div>
             <div className="mb-3">
-              <label className="form-label"><b>Content</b></label>
-              <textarea
-                className="form-control"
-                {...register("content")}
-              ></textarea>
+              <label className="form-label">
+                <b>Content</b>
+              </label>
+              <textarea className="form-control" {...register("content")} />
               <small className="text-danger">{errors.content?.message}</small>
             </div>
             <div className="mb-3">
-              <label className="form-label"><b>Cost</b></label>
+              <label className="form-label">
+                <b>Cost</b>
+              </label>
               <input
                 type="number"
                 className="form-control"
@@ -243,7 +260,9 @@ setIsLoading(true)
               <small className="text-danger">{errors.cost?.message}</small>
             </div>
             <div className="mb-3">
-              <label className="form-label"><b>Banner Image</b></label>
+              <label className="form-label">
+                <b>Banner Image</b>
+              </label>
               <div className="mb-2">
                 {preview && (
                   <Image src={preview} alt="Preview" width={100} height={100} />
@@ -252,10 +271,10 @@ setIsLoading(true)
               <input
                 type="file"
                 className="form-control"
+                {...register("banner_image")}
                 onChange={(event) => {
                   const file = event.target.files?.[0];
                   if (!file) return;
-                  setValue("banner_image", file);
                   setPreview(URL.createObjectURL(file));
                 }}
               />
