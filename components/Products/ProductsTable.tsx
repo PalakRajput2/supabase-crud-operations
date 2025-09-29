@@ -26,8 +26,8 @@ export default function ProductsTable({
   };
 
   return (
-    <div className="card p-3 shadow-sm">
-      <table className="table table-striped table-hover">
+    <div className="card p-3 shadow-sm text-center">
+      <table className="table table-striped table-hover ">
         <thead>
           <tr>
             <th>Image</th>
@@ -48,7 +48,7 @@ export default function ProductsTable({
                     <img
                       src={p.banner_image}
                       alt={p.title}
-                      style={{ width: "60px", height: "40px", objectFit: "cover" }}
+                      style={{ width: "70px", height: "50px", objectFit: "cover" }}
                       className="rounded"
                     />
                   )}

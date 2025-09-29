@@ -17,20 +17,8 @@ type ProductFormProps = {
 };
 
 export default function ProductForm({
-  onSubmit,
-  editId,
-  defaultValues,
-  previewUrl,
-  setFile,
-  setPreviewUrl,
-  file,
-}: ProductFormProps) {
-  const {
-    register,
-    handleSubmit,
-    reset,
-    formState: { errors },
-  } = useForm<Product>({
+  onSubmit,  editId,  defaultValues,  previewUrl, setFile, setPreviewUrl, file,}: ProductFormProps) {
+  const {register,handleSubmit,reset,formState: { errors },} = useForm<Product>({
     resolver: yupResolver(productSchema),
     defaultValues,
   });
@@ -48,8 +36,7 @@ export default function ProductForm({
       <form
         onSubmit={handleSubmit((data) => {
           onSubmit(data, file);
-
-          // 🔹 Reset to empty form always after submit
+          //  Reset to empty form always after submit
           reset({ title: "", content: "", cost: 0 });
           setFile(null);
           setPreviewUrl(null);
@@ -100,11 +87,11 @@ export default function ProductForm({
 
         {/* Image Preview */}
         {previewUrl && (
-          <div className="mb-3 text-center">
+          <div className="mb-2 text-center">
             <img
               src={previewUrl}
               alt="Preview"
-              style={{ maxWidth: "100%", maxHeight: "200px", objectFit: "cover" }}
+              style={{ maxWidth: "100%", maxHeight: "150px", objectFit: "cover" }}
               className="rounded shadow-sm"
             />
           </div>

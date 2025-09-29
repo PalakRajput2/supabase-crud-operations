@@ -17,9 +17,10 @@ export default function LoginForm({ onSubmit, onOAuth }: LoginFormProps) {
     } = useForm<{ email: string; password: string }>();
 
     return (
-        <div className="container mt-5" style={{ maxWidth: "400px" }}>
+        <div className="container mt-5" style={{ maxWidth: "500px" }}>
             <div className="card p-4 shadow-sm">
-                <h3 className="mb-3 text-center">Login</h3>
+                <h3 className="mb-1 text-center">Login</h3>
+                <span className="mb-3 text-center">Want to get back into your account</span>
                 <form onSubmit={handleSubmit(onSubmit)}>
                     {/* Email */}
                     <div className="mb-3">

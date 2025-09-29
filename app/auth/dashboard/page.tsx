@@ -145,6 +145,10 @@ export default function Dashboard() {
   const handleEdit = (product: Product) => {
     setEditId(product.id!);
     setPreviewUrl(product.banner_image || null);
+    //  Scroll to top on small screens
+    if (window.innerWidth < 768) {
+      window.scrollTo({ top: 0, behavior: "smooth" });
+    }
   };
 
   return (
@@ -153,7 +157,7 @@ export default function Dashboard() {
 
       <div className="row">
         {/* Left column: Form */}
-        <div className="col-md-5">
+        <div className="col-xs-12 col-xl-5 ">
           <ProductForm
             onSubmit={onSubmit}
             editId={editId}
@@ -167,18 +171,19 @@ export default function Dashboard() {
           />
         </div>
 
-        {/* Right column: Products list */}
-        <div className="col-md-7">
+        <div className="col-12 col-lg-7">
           <h4>Your Products</h4>
-          <ProductsTable
-            products={sortedProducts}
-            handleEdit={handleEdit}
-            handleDelete={handleDelete}
-            sortOrder={sortOrder}
-            onSortToggle={handleSortToggle}
-          />
+          <div className="table-responsive">
+            <ProductsTable
+              products={sortedProducts}
+              handleEdit={handleEdit}
+              handleDelete={handleDelete}
+              sortOrder={sortOrder}
+              onSortToggle={handleSortToggle}
+            />
+          </div>
         </div>
-      </div>
+   </div>
     </div>
   );
 }

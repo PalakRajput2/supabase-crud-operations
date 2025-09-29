@@ -2,7 +2,7 @@
 import Loader from "@/components/Loader";
 import { createContext, useContext, useEffect, useState } from "react";
 import { supabase } from "@/lib/supabaseClient";
-import toast from "react-hot-toast";
+
 
 interface UserProfile {
   name?: string;
@@ -74,7 +74,7 @@ export const AppUtilsProvider = ({ children }: { children: React.ReactNode }) =>
           };
           setUserProfile(profile);
           localStorage.setItem("user_profile", JSON.stringify(profile));
-         }
+        }
       } else {
         setAuthToken(null);
         localStorage.removeItem("access_token");
@@ -89,7 +89,8 @@ export const AppUtilsProvider = ({ children }: { children: React.ReactNode }) =>
 
   return (
     <AppUtilsContext.Provider
-      value={{ isLoggedIn, setIsLoggedIn, authToken, setAuthToken,
+      value={{
+        isLoggedIn, setIsLoggedIn, authToken, setAuthToken,
         userProfile,
         setUserProfile,
         isLoading,

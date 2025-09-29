@@ -57,8 +57,9 @@ export default function Register() {
       <div className="row justify-content-center">
         <div className="col-md-8 col-lg-7">
           <div className="card shadow-sm p-4">
-            <h2 className="text-center mb-4">Sign Up</h2>
-
+            <h2 className="text-center mb-2">Sign Up</h2>
+                <span className="mb-4 text-center">Create your account here</span>
+              
             <form onSubmit={handleSubmit(onSubmit)}>
               {/* Name + Email */}
               <div className="row mb-3">
