@@ -1,8 +1,9 @@
 "use client";
 import Loader from "@/components/Loader";
 import { createContext, useContext, useEffect, useState } from "react";
+import { supabase } from "@/lib/supabaseClient";
+import toast from "react-hot-toast";
 
-// Define user profile shape
 interface UserProfile {
   name?: string;
   email?: string;
@@ -10,7 +11,6 @@ interface UserProfile {
   phone?: string;
 }
 
-// Define context type
 interface AppUtilsType {
   isLoggedIn: boolean;
   setIsLoggedIn: (state: boolean) => void;
@@ -28,36 +28,68 @@ interface AppUtilsType {
 const AppUtilsContext = createContext<AppUtilsType | undefined>(undefined);
 
 export const AppUtilsProvider = ({ children }: { children: React.ReactNode }) => {
-  const [isLoggedIn, setIsLoggedIn] = useState<boolean>(false);
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [authToken, setAuthToken] = useState<string | null>(null);
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
-  const [isLoading, setIsLoading] = useState<boolean>(false);
+  const [isLoading, setIsLoading] = useState(false);
 
   useEffect(() => {
-    const token = localStorage.getItem("access_token");
-    const profile = localStorage.getItem("user_profile");
-
-    if (token) {
-      setAuthToken(token);
-      setIsLoggedIn(true);
+    // 🔹 Remove hash (#) after OAuth redirect
+    if (window.location.hash) {
+      history.replaceState(null, "", window.location.pathname);
     }
 
-    if (profile) {
-      try {
-        setUserProfile(JSON.parse(profile));
-      } catch {
-        setUserProfile(null);
+    // 🔹 Check initial session
+    supabase.auth.getSession().then(({ data }) => {
+      if (data.session?.access_token) {
+        setAuthToken(data.session.access_token);
+        localStorage.setItem("access_token", data.session.access_token);
+        setIsLoggedIn(true);
+
+        // also set profile
+        if (data.session.user) {
+          const profile = {
+            name: data.session.user.user_metadata?.name || "",
+            email: data.session.user.email || "",
+          };
+          setUserProfile(profile);
+          localStorage.setItem("user_profile", JSON.stringify(profile));
+        }
       }
-    }
+    });
+
+    // 🔹 Listen for auth state changes
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((_event, session) => {
+      if (session?.access_token) {
+        setAuthToken(session.access_token);
+        localStorage.setItem("access_token", session.access_token);
+        setIsLoggedIn(true);
+
+        if (session.user) {
+          const profile = {
+            name: session.user.user_metadata?.name || "",
+            email: session.user.email || "",
+          };
+          setUserProfile(profile);
+          localStorage.setItem("user_profile", JSON.stringify(profile));
+         }
+      } else {
+        setAuthToken(null);
+        localStorage.removeItem("access_token");
+        setIsLoggedIn(false);
+        setUserProfile(null);
+        localStorage.removeItem("user_profile");
+      }
+    });
+
+    return () => subscription.unsubscribe();
   }, []);
 
   return (
     <AppUtilsContext.Provider
-      value={{
-        isLoggedIn,
-        setIsLoggedIn,
-        authToken,
-        setAuthToken,
+      value={{ isLoggedIn, setIsLoggedIn, authToken, setAuthToken,
         userProfile,
         setUserProfile,
         isLoading,
@@ -65,6 +97,7 @@ export const AppUtilsProvider = ({ children }: { children: React.ReactNode }) =>
       }}
     >
       {children}
+
       {isLoading && (
         <div
           className="position-fixed top-0 start-0 w-100 h-100 d-flex justify-content-center align-items-center bg-white bg-opacity-85"

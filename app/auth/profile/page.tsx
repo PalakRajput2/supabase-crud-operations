@@ -10,8 +10,7 @@ export default function Profile() {
 
   useEffect(() => {
     const fetchProfileFromAuth = async () => {
-      setIsLoading(true); // global loader
-
+      setIsLoading(true);
       const {
         data: { session },
         error,
@@ -20,12 +19,12 @@ export default function Profile() {
       if (error || !session?.user) {
         toast.error("Please log in to view your profile");
         setIsLoading(false);
-       
+
         return;
       }
 
       const profile = {
-        name: session.user.user_metadata?.fullname ?? "",
+        name: session.user.user_metadata?.fullName ?? "",
         email: session.user.email ?? "",
         gender: session.user.user_metadata?.gender ?? "",
         phone: session.user.user_metadata?.phone ?? "",
@@ -33,15 +32,14 @@ export default function Profile() {
 
       setUserProfile(profile);
       localStorage.setItem("user_profile", JSON.stringify(profile));
-
       setIsLoading(false);
-    
+
     };
 
     fetchProfileFromAuth();
   }, [setIsLoading, setUserProfile]);
 
- 
+
 
   return (
     <>

@@ -40,3 +40,29 @@ a {
     color-scheme: dark;
   }
 }
+/* Common size */
+.oauth-btn {
+  width: 45px;
+  height: 45px;
+  border: 1px solid #ddd;
+  background: #fff;
+  transition: all 0.3s ease;
+}
+
+/* Google */
+.oauth-btn.google {
+  color: #28a745; /* Bootstrap green */
+}
+.oauth-btn.google:hover {
+  background: #28a745;
+  color: #fff;
+}
+
+/* GitHub */
+.oauth-btn.github {
+  color: #000;
+}
+.oauth-btn.github:hover {
+  background: #000;
+  color: #fff;
+}
